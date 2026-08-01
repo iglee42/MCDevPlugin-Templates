@@ -1,0 +1,239 @@
+{
+  "version": 3,
+  "group": "mod",
+  "properties": [
+    {
+      "name": "BUILD_COORDS",
+      "type": "build_system_coordinates",
+      "order": 10
+    },
+    {
+      "name": "VERSIONS",
+      "type": "fabric_versions"
+    },
+    {
+      "name": "MOD_ENVIRONMENT",
+      "type": "string",
+      "options": [
+        "*",
+        "client",
+        "server"
+      ],
+      "default": "*"
+    },
+    {
+      "name": "USE_MIXINS",
+      "type": "boolean",
+      "remember": "fabric.USE_MIXINS",
+      "default": true
+    },
+    {
+      "name": "USE_DATAGEN",
+      "type": "boolean",
+      "default": true,
+      "visible": {
+        "dependsOn": [
+          "VERSIONS"
+        ],
+        "condition": "$VERSIONS.useFabricApi"
+      }
+    },
+    {
+      "name": "SPLIT_SOURCES",
+      "type": "boolean",
+      "default": true,
+      "visible": {
+        "dependsOn": [
+          "VERSIONS"
+        ],
+        "condition": "$VERSIONS.minecraftVersion.compareTo($mcver.MC1_18) >= 0"
+      }
+    },
+    {
+      "name": "CLIENT_SOURCE_SET",
+      "type": "string",
+      "visible": false,
+      "derives": {
+        "parents": [
+          "VERSIONS",
+          "SPLIT_SOURCES"
+        ],
+        "select": [
+          {
+            "condition": "$SPLIT_SOURCES && $VERSIONS.minecraftVersion.compareTo($mcver.MC1_18) >= 0",
+            "value": "client"
+          }
+        ],
+        "default": "main"
+      }
+    },
+    {
+      "name": "MOD_ID",
+      "type": "string",
+      "validator": "[a-z][a-z0-9-_]{1,63}",
+      "derives": {
+        "parents": [
+          "PROJECT_NAME"
+        ],
+        "method": "replace",
+        "parameters": {
+          "regex": "[^a-z0-9-_]+",
+          "replacement": "_",
+          "maxLength": 64,
+          "lowercase": true
+        }
+      }
+    },
+    {
+      "name": "MOD_NAME",
+      "type": "string",
+      "inheritFrom": "PROJECT_NAME"
+    },
+    {
+      "name": "MAIN_CLASS",
+      "type": "class_fqn",
+      "derives": {
+        "parents": [
+          "BUILD_COORDS",
+          "MOD_ID"
+        ],
+        "method": "suggestClassName"
+      }
+    },
+    {
+      "name": "LICENSE",
+      "type": "license"
+    },
+    {
+      "label": "creator.ui.optional_settings.label",
+      "collapsible": true,
+      "groupProperties": [
+        {
+          "name": "DESCRIPTION",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "AUTHORS",
+          "type": "inline_string_list",
+          "default": ""
+        },
+        {
+          "name": "WEBSITE",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "name": "JAVA_VERSION",
+      "type": "integer",
+      "order": 20,
+      "default": 17,
+      "visible": false,
+      "derives": {
+        "parents": [
+          "VERSIONS"
+        ],
+        "method": "recommendJavaVersionForMcVersion",
+        "default": 17
+      }
+    },
+    {
+      "name": "JDK",
+      "type": "jdk",
+      "order": 20,
+      "default": "JAVA_VERSION"
+    }
+  ],
+  "files": [
+    {
+      "template": "../Gradle.gitignore.ft",
+      "destination": ".gitignore",
+      "condition": "$USE_GIT"
+    },
+    {
+      "template": "build.gradle.ft",
+      "destination": "build.gradle"
+    },
+    {
+      "template": "settings.gradle.ft",
+      "destination": "settings.gradle"
+    },
+    {
+      "template": "gradle.properties.ft",
+      "destination": "gradle.properties"
+    },
+    {
+      "template": "../gradle-wrapper.properties.ft",
+      "destination": "gradle/wrapper/gradle-wrapper.properties",
+      "properties": {
+        "GRADLE_VERSION": "9.6.1"
+      }
+    },
+    {
+      "template": "fabric.mod.json.ft",
+      "destination": "src/main/resources/fabric.mod.json"
+    },
+    {
+      "template": "mixins.json.ft",
+      "destination": "src/main/resources/${MOD_ID}.mixins.json",
+      "condition": "$USE_MIXINS"
+    },
+    {
+      "template": "mixins.json.ft",
+      "destination": "src/client/resources/${MOD_ID}.client.mixins.json",
+      "condition": "$USE_MIXINS && $SPLIT_SOURCES && $VERSIONS.minecraftVersion.compareTo($mcver.MC1_18) >= 0",
+      "properties": {
+        "CLIENT": true
+      }
+    },
+    {
+      "template": "Initializer.java.ft",
+      "destination": "src/main/java/${MAIN_CLASS.path}.java",
+      "openInEditor": true
+    },
+    {
+      "template": "ClientInitializer.java.ft",
+      "destination": "src/${CLIENT_SOURCE_SET}/java/${MAIN_CLASS.packagePath}/client/${MAIN_CLASS.className}Client.java",
+      "condition": "$MOD_ENVIRONMENT != 'server'",
+      "openInEditor": true
+    },
+    {
+      "template": "DataGenerator.java.ft",
+      "destination": "src/${CLIENT_SOURCE_SET}/java/${MAIN_CLASS.packagePath}/client/${MAIN_CLASS.className}DataGenerator.java",
+      "condition": "$USE_DATAGEN",
+      "openInEditor": true
+    },
+    {
+      "template": "../github-build.yml.ft",
+      "destination": ".github/workflows/build.yml"
+    },
+    {
+      "template": "../licenses/${LICENSE.id}.txt.ft",
+      "destination": "LICENSE.txt"
+    }
+  ],
+  "finalizers": [
+    {
+      "type": "run_gradle_tasks",
+      "tasks": [
+        "wrapper"
+      ]
+    },
+    {
+      "type": "import_gradle_project"
+    },
+    {
+      "type": "add_gradle_run",
+      "tasks": [
+        "build"
+      ],
+      "name": "Build"
+    },
+    {
+      "type": "git_add_all",
+      "condition": "$USE_GIT"
+    }
+  ]
+}

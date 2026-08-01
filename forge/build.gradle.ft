@@ -1,0 +1,253 @@
+﻿#if (${USE_MIXINS})
+buildscript {
+    repositories {
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+    }
+}
+#end
+
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'dev.ithundxr.silk' version '1.0.1'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
+}
+
+#if (${USE_MIXINS})
+apply plugin: 'org.spongepowered.mixin'
+#end
+
+group = mod_group_id
+version = mod_version
+
+String gitHash = calculateGitHash()
+String changelogText = providers.gradleProperty("publish_changelog")
+    .orElse(providers.environmentVariable("CHANGELOG"))
+    .orElse("Automated release")
+    .get()
+
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(${JAVA_VERSION})
+}
+
+minecraft {
+    mappings channel: mapping_channel, version: mapping_version
+#if (${USE_AT})
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+#end
+#if ($VERSIONS.minecraft.compareTo($mcver.MC1_20_6) >= 0)
+
+    reobf = false
+#end
+
+
+    copyIdeResources = true
+
+
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+
+            property 'forge.logging.markers', 'REGISTRIES'
+
+
+            property 'forge.logging.console.level', 'debug'
+#set ($MERGE_RESOURCES_AND_CLASSES = $VERSIONS.minecraft.compareTo($mcver.MC1_20_3) >= 0)
+#if (!${MERGE_RESOURCES_AND_CLASSES})
+
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+#end
+        }
+
+#set ($GAME_TEST_FRAMEWORK = $VERSIONS.forge.compareTo($semver.release(39, 0, 88)) >= 0)
+        client {
+#if (${GAME_TEST_FRAMEWORK})
+            property 'forge.enabledGameTestNamespaces', mod_id
+#end
+        }
+
+        server {
+#if (${GAME_TEST_FRAMEWORK})
+            property 'forge.enabledGameTestNamespaces', mod_id
+#end
+            args '--nogui'
+        }
+#if (${GAME_TEST_FRAMEWORK})
+
+        gameTestServer {
+            property 'forge.enabledGameTestNamespaces', mod_id
+        }
+#end
+
+        data {
+            workingDirectory project.file('run-data')
+
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
+}
+#if (${USE_MIXINS})
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+
+    config "${mod_id}.mixins.json"
+}
+#end
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+
+
+#if (${USE_MIXINS})
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+#end
+
+#if ($VERSIONS.minecraft.compareTo($mcver.MC1_20_6) >= 0)
+    implementation('net.sf.jopt-simple:jopt-simple:5.0.4') { version { strictly '5.0.4' } }
+#end
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
+            forge_version: forge_version, forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
+            mod_authors: mod_authors, mod_description: mod_description,
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes([
+                "Specification-Title": mod_id,
+                "Specification-Vendor": mod_authors,
+                "Specification-Version": "1", // We are version 1 of ourselves
+                "Implementation-Title": project.name,
+                "Implementation-Version": project.jar.archiveVersion,
+                "Implementation-Vendor": mod_authors,
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+#if ($VERSIONS.minecraft.compareTo($mcver.MC1_20_6) < 0)
+
+    finalizedBy 'reobfJar'
+#end
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+#if (${MERGE_RESOURCES_AND_CLASSES})
+
+sourceSets.each {
+    def dir = layout.buildDirectory.dir("sourcesSets/$it.name")
+    it.output.resourcesDir = dir
+    it.java.destinationDirectory = dir
+}
+#end
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+        }
+    }
+    repositories {
+        maven {
+            name = 'igleeRepo'
+            url = "https://maven.iglee.fr/releases"
+            credentials {
+                username = providers.environmentVariable("MAVEN_USERNAME").orNull
+                password = providers.environmentVariable("MAVEN_PASSWORD").orNull
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+    }
+}
+
+publishMods {
+    file = tasks.jar.archiveFile
+    changelog = changelogText
+    type = STABLE
+    displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
+    modLoaders.add("forge")
+    dryRun = providers.environmentVariable("DRY_RUN").map { it == "true" }.orElse(false).get()
+
+    def curseforgeProjectId = providers.gradleProperty("publish_curseforge_project_id").orNull
+    if (curseforgeProjectId) {
+        curseforge {
+            accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+            projectId = curseforgeProjectId
+            projectSlug = providers.gradleProperty("publish_curseforge_project_slug").orNull
+            minecraftVersions.add(minecraft_version)
+            changelogType = "markdown"
+            clientRequired = true
+            serverRequired = true
+        }
+    }
+
+    def modrinthProjectId = providers.gradleProperty("publish_modrinth_project_id").orNull
+    if (modrinthProjectId) {
+        modrinth {
+            accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+            projectId = modrinthProjectId
+            minecraftVersions.add(minecraft_version)
+        }
+    }
+
+    def githubRepository = providers.gradleProperty("publish_github_repository").orNull
+    if (githubRepository) {
+        github {
+            accessToken = providers.environmentVariable("GITHUB_TOKEN")
+            repository = githubRepository
+            commitish = gitHash
+            tagName = providers.gradleProperty("publish_github_tag_name").orElse("${mod_version}-${minecraft_version}").get()
+            file.unset()
+            file.unsetConvention()
+            allowEmptyFiles = true
+        }
+    }
+}
+
+String calculateGitHash() {
+    try {
+        ExecOutput output = providers.exec {
+            commandLine("git", "rev-parse", "HEAD")
+        }
+        return output.standardOutput.asText.get().trim()
+    } catch (Throwable ignored) {
+        return "unknown"
+    }
+}

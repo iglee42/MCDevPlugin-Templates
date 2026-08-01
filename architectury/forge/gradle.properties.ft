@@ -1,0 +1,9 @@
+loom.platform = forge
+
+publish_display_name=${MOD_NAME} ${BUILD_COORDS.version} for mc${VERSIONS.minecraftVersion}
+publish_changelog=Automated release
+publish_modrinth_project_id=
+publish_curseforge_project_id=
+publish_curseforge_project_slug=
+publish_github_repository=
+publish_github_tag_name=${BUILD_COORDS.version}-${VERSIONS.minecraftVersion}

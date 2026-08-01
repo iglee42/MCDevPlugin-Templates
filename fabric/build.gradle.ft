@@ -1,0 +1,108 @@
+﻿plugins {
+#if ($VERSIONS.minecraftVersion.compareTo($mcver.MC26_1) >= 0)
+    id 'net.fabricmc.fabric-loom' version '${VERSIONS.loom}'
+#else
+    id 'fabric-loom' version '${VERSIONS.loom}'
+#end
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+#if ($SPLIT_SOURCES && $VERSIONS.minecraftVersion.compareTo($mcver.MC1_18) >= 0)
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "${MOD_ID}" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+#end
+
+#if ($USE_DATAGEN)
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+#end
+
+repositories {
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+#if ($VERSIONS.minecraftVersion.compareTo($mcver.MC26_1) >= 0)
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    
+    #if (${VERSIONS.useFabricApi})
+        implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    #end
+#else
+    #if (${VERSIONS.useOfficialMappings})
+        mappings loom.officialMojangMappings()
+    #else
+        mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    #end
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    #if (${VERSIONS.useFabricApi})
+        modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    #end
+#end
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+    filteringCharset "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version
+    }
+}
+
+def targetJavaVersion = ${JAVA_VERSION}
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        it.options.release.set(targetJavaVersion)
+    }
+}
+
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    }
+    withSourcesJar()
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}"}
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    repositories {
+    }
+}

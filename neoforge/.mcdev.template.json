@@ -1,0 +1,201 @@
+{
+  "version": 3,
+  "group": "mod",
+  "properties": [
+    {
+      "name": "BUILD_COORDS",
+      "type": "build_system_coordinates",
+      "order": 10
+    },
+    {
+      "name": "VERSIONS",
+      "type": "neoforge_versions",
+      "parameters": {
+        "mcVersionFilter": "$MC_VERSION.compareTo($mcver.MC1_20_5) >= 0"
+      }
+    },
+    {
+      "name": "USE_MIXINS",
+      "type": "boolean",
+      "remember": "neoforge.USE_MIXINS",
+      "default": false
+    },
+    {
+      "name": "USE_AT",
+      "type": "boolean",
+      "remember": "neoforge.USE_AT",
+      "default": false
+    },
+    {
+      "name": "MOD_ID",
+      "type": "string",
+      "validator": "[a-z][a-z0-9_]{1,63}",
+      "derives": {
+        "parents": [
+          "PROJECT_NAME"
+        ],
+        "method": "replace",
+        "parameters": {
+          "regex": "[^a-z0-9-_]+",
+          "replacement": "_",
+          "maxLength": 64,
+          "lowercase": true
+        }
+      }
+    },
+    {
+      "name": "MOD_NAME",
+      "type": "string",
+      "inheritFrom": "PROJECT_NAME"
+    },
+    {
+      "name": "MAIN_CLASS",
+      "type": "class_fqn",
+      "derives": {
+        "parents": [
+          "BUILD_COORDS",
+          "MOD_ID"
+        ],
+        "method": "suggestClassName"
+      }
+    },
+    {
+      "name": "LICENSE",
+      "type": "license"
+    },
+    {
+      "label": "creator.ui.optional_settings.label",
+      "collapsible": true,
+      "groupProperties": [
+        {
+          "name": "DESCRIPTION",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "AUTHORS",
+          "type": "inline_string_list",
+          "default": ""
+        },
+        {
+          "name": "WEBSITE",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "UPDATE_URL",
+          "type": "string",
+          "default": "",
+          "nullIfDefault": true
+        },
+        {
+          "name": "PARCHMENT",
+          "type": "parchment",
+          "parameters": {
+            "minecraftVersionProperty": "VERSIONS"
+          }
+        }
+      ]
+    },
+    {
+      "name": "JAVA_VERSION",
+      "type": "integer",
+      "order": 20,
+      "default": 17,
+      "visible": false,
+      "derives": {
+        "parents": [
+          "VERSIONS"
+        ],
+        "method": "recommendJavaVersionForMcVersion",
+        "default": 17
+      }
+    },
+    {
+      "name": "JDK",
+      "type": "jdk",
+      "order": 20,
+      "default": "JAVA_VERSION"
+    }
+  ],
+  "files": [
+    {
+      "template": "../Gradle.gitignore.ft",
+      "destination": ".gitignore",
+      "condition": "$USE_GIT"
+    },
+    {
+      "template": "build.gradle.ft",
+      "destination": "build.gradle"
+    },
+    {
+      "template": "settings.gradle.ft",
+      "destination": "settings.gradle"
+    },
+    {
+      "template": "gradle.properties.ft",
+      "destination": "gradle.properties"
+    },
+    {
+      "template": "../gradle-wrapper.properties.ft",
+      "destination": "gradle/wrapper/gradle-wrapper.properties",
+      "condition": "$VERSIONS.minecraft.compareTo($semver.parse('26.1')) >= 0",
+      "properties": {
+        "GRADLE_VERSION": "9.4.0"
+      }
+    },
+    {
+      "template": "../gradle-wrapper.properties.ft",
+      "destination": "gradle/wrapper/gradle-wrapper.properties",
+      "condition": "$VERSIONS.minecraft.compareTo($semver.parse('26.1')) < 0",
+      "properties": {
+        "GRADLE_VERSION": "8.12.1"
+      }
+    },
+    {
+      "template": "neoforge.mods.toml.ft",
+      "destination": "src/main/templates/META-INF/neoforge.mods.toml"
+    },
+    {
+      "template": "../AccessTransformer.cfg.ft",
+      "destination": "src/main/resources/META-INF/accesstransformer.cfg",
+      "condition": "$USE_AT"
+    },
+    {
+      "template": "MixinsConfig.json.ft",
+      "destination": "src/main/resources/${MOD_ID}.mixins.json",
+      "condition": "$USE_MIXINS"
+    },
+    {
+      "template": "../github-build.yml.ft",
+      "destination": ".github/workflows/build.yml"
+    },
+    {
+      "template": "MainClass.java.ft",
+      "destination": "src/main/java/${MAIN_CLASS.path}.java",
+      "openInEditor": true
+    }
+  ],
+  "finalizers": [
+    {
+      "type": "run_gradle_tasks",
+      "tasks": [
+        "wrapper"
+      ]
+    },
+    {
+      "type": "import_gradle_project"
+    },
+    {
+      "type": "add_gradle_run",
+      "tasks": [
+        "build"
+      ],
+      "name": "Build"
+    },
+    {
+      "type": "git_add_all",
+      "condition": "$USE_GIT"
+    }
+  ]
+}

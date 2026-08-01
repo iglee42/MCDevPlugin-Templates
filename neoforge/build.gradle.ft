@@ -1,0 +1,242 @@
+﻿plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'idea'
+#if (${VERSIONS.minecraft.compareTo($mcver.MC1_21)} >= 0)
+    id 'net.neoforged.moddev' version '${VERSIONS.moddev}'
+#else
+    id 'net.neoforged.gradle.userdev' version '${VERSIONS.neogradle}'
+#end
+#if (${VERSIONS.minecraft.compareTo($semver.parse('26.1'))} > 0)
+    id 'dev.ithundxr.silk' version '1.0.1'
+    id 'me.modmuss50.mod-publish-plugin' version '2.2.0'
+#else
+    id 'dev.ithundxr.silk' version '1.0.1'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
+#end
+}
+
+version = mod_version
+group = mod_group_id
+
+String gitHash = calculateGitHash()
+String changelogText = providers.gradleProperty("publish_changelog")
+    .orElse(providers.environmentVariable("CHANGELOG"))
+    .orElse("Automated release")
+    .get()
+
+repositories {
+    mavenLocal()
+}
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(${JAVA_VERSION})
+
+#if (${VERSIONS.minecraft.compareTo($mcver.MC1_21)} >= 0)
+neoForge {
+    version = project.neo_version
+
+#if (${PARCHMENT.use})
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+#end
+
+#if (${USE_AT})
+    accessTransformers.add('src/main/resources/META-INF/accesstransformer.cfg')
+#end
+
+    runs {
+        client {
+            client()
+
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        data {
+            #if ($VERSIONS.minecraft.compareTo($semver.parse("1.21.4")) < 0)
+                data()
+            #else
+                clientData()
+            #end
+
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+#else
+
+runs {
+    configureEach {
+        systemProperty 'forge.logging.markers', 'REGISTRIES'
+
+        systemProperty 'forge.logging.console.level', 'debug'
+
+        modSource project.sourceSets.main
+    }
+
+    client {
+        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+    }
+
+    server {
+        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+        programArgument '--nogui'
+    }
+
+    gameTestServer {
+        systemProperty 'forge.enabledGameTestNamespaces', project.mod_id
+    }
+
+    data {
+
+        programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+    }
+}
+#end
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+
+dependencies {
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+publishMods {
+    file = tasks.jar.archiveFile
+    displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
+    version = project.version
+    changelog = changelogText
+    type = STABLE
+    modLoaders.add("neoforge")
+    dryRun = providers.environmentVariable("DRY_RUN").map { it == "true" }.orElse(false).get()
+
+    def modrinthProjectId = providers.gradleProperty("publish_modrinth_project_id").orNull
+    if (modrinthProjectId) {
+        modrinth {
+            accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+            projectId = modrinthProjectId
+            minecraftVersions.add(minecraft_version)
+        }
+    }
+
+    def curseforgeProjectId = providers.gradleProperty("publish_curseforge_project_id").orNull
+    if (curseforgeProjectId) {
+        curseforge {
+            accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+            projectId = curseforgeProjectId
+            projectSlug = providers.gradleProperty("publish_curseforge_project_slug").orNull
+            minecraftVersions.add(minecraft_version)
+            changelogType = "markdown"
+#if (${VERSIONS.minecraft.compareTo($semver.parse('26.1'))} > 0)
+            client = "required"
+            server = "required"
+#else
+            clientRequired = true
+            serverRequired = true
+#end
+        }
+    }
+
+    def githubRepository = providers.gradleProperty("publish_github_repository").orNull
+    if (githubRepository) {
+        github {
+            accessToken = providers.environmentVariable("GITHUB_TOKEN")
+            repository = githubRepository
+            commitish = gitHash
+            tagName = providers.gradleProperty("publish_github_tag_name").orElse("${mod_version}-${minecraft_version}").get()
+            file.unset()
+            file.unsetConvention()
+            allowEmptyFiles = true
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from(components.java)
+        }
+    }
+    repositories {
+        maven {
+            name = 'igleeRepo'
+            url = "https://maven.iglee.fr/releases"
+            credentials {
+                username = providers.environmentVariable("MAVEN_USERNAME").orNull
+                password = providers.environmentVariable("MAVEN_PASSWORD").orNull
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
+
+String calculateGitHash() {
+    try {
+        ExecOutput output = providers.exec {
+            commandLine("git", "rev-parse", "HEAD")
+        }
+        return output.standardOutput.asText.get().trim()
+    } catch (Throwable ignored) {
+        return "unknown"
+    }
+}
