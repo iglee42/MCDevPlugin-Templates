@@ -151,7 +151,7 @@ neoForge.ideSyncTask generateModMetadata
 
 publishMods {
     file = tasks.jar.archiveFile
-    displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
+    displayName = "$mod_name $mod_version for mc$minecraft_version"
     version = project.version
     changelog = silk.changelog
     type = STABLE
@@ -191,12 +191,16 @@ publishMods {
             accessToken = providers.environmentVariable("GITHUB_TOKEN")
             repository = githubRepository
             commitish = gitHash
-            tagName = providers.gradleProperty("publish_github_tag_name").orElse("${mod_version}-${minecraft_version}").get()
+            tagName = "$mod_version-$minecraft_version"
             file.unset()
             file.unsetConvention()
             allowEmptyFiles = true
         }
     }
+
+    def discordContent = changelogText.length() > 4000
+        ? "Changelog is too long, check it on Modrinth."
+        : changelogText
 
     discord {
         webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
@@ -204,7 +208,7 @@ publishMods {
         content = """
                 # $mod_name | $mod_version
 
-                ${if (changelogText.length() > 4000) "Changelog is too long, check it on Modrinth." else changelogText}
+                $discordContent
             """.stripIndent()
 
         style {
@@ -226,7 +230,7 @@ publishing {
     repositories {
         maven {
             name = 'igleeRepo'
-            url = providers.gradleProperty("publish_maven_repository_url").orElse("https://maven.iglee.fr/releases").get()
+            url = providers.gradleProperty("publish_maven_repository_url").orNull
             credentials {
                 username = providers.environmentVariable("MAVEN_USERNAME").orNull
                 password = providers.environmentVariable("MAVEN_PASSWORD").orNull

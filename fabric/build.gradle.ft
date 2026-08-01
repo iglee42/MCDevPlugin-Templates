@@ -5,10 +5,15 @@
     id 'fabric-loom' version '${VERSIONS.loom}'
 #end
     id 'maven-publish'
+    id 'dev.ithundxr.silk' version '1.0.1'
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
 }
 
 version = project.mod_version
 group = project.maven_group
+
+String gitHash = calculateGitHash()
+String changelogText = silk.getChangelog()
 
 base {
     archivesName = project.archives_base_name
@@ -95,6 +100,72 @@ jar {
     }
 }
 
+publishMods {
+    file = tasks.jar.archiveFile
+    displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
+    version = project.version
+    changelog = silk.changelog
+    type = STABLE
+    modLoaders.add("fabric")
+    dryRun = providers.environmentVariable("DRY_RUN").map { it == "true" }.orElse(false).get()
+
+    def modrinthProjectId = providers.gradleProperty("publish_modrinth_project_id").orNull
+    if (modrinthProjectId) {
+        modrinth {
+            accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+            projectId = modrinthProjectId
+            minecraftVersions.add(minecraft_version)
+        }
+    }
+
+    def curseforgeProjectId = providers.gradleProperty("publish_curseforge_project_id").orNull
+    if (curseforgeProjectId) {
+        curseforge {
+            accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+            projectId = curseforgeProjectId
+            projectSlug = providers.gradleProperty("publish_curseforge_project_slug").orNull
+            minecraftVersions.add(minecraft_version)
+            changelogType = "markdown"
+            clientRequired = true
+            serverRequired = true
+        }
+    }
+
+    def githubRepository = providers.gradleProperty("publish_github_repository").orNull
+    if (githubRepository) {
+        github {
+            accessToken = providers.environmentVariable("GITHUB_TOKEN")
+            repository = githubRepository
+            commitish = gitHash
+            tagName = providers.gradleProperty("publish_github_tag_name").orElse("${mod_version}-${minecraft_version}").get()
+            file.unset()
+            file.unsetConvention()
+            allowEmptyFiles = true
+        }
+    }
+
+    def discordContent = changelogText.length() > 4000
+        ? "Changelog is too long, check it on Modrinth."
+        : changelogText
+
+    discord {
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
+        dryRunWebhookUrl = providers.environmentVariable("DISCORD_WEBHOOK_DRY_RUN")
+        content = """
+                # ${mod_name} | ${mod_version}
+
+                $discordContent
+            """.stripIndent()
+
+        style {
+            link = "BUTTON"
+            look = "MODERN"
+            thumbnailUrl = "https://cdn.modrinth.com/data/hSSqdyU1/e7229e03d0795915092cdab361ee4406e0b27153_96.webp"
+            color = "curseforge"
+        }
+    }
+}
+
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -115,5 +186,16 @@ publishing {
                 basic(BasicAuthentication)
             }
         }
+    }
+}
+
+String calculateGitHash() {
+    try {
+        ExecOutput output = providers.exec {
+            commandLine("git", "rev-parse", "HEAD")
+        }
+        return output.standardOutput.asText.get().trim()
+    } catch (Throwable ignored) {
+        return "unknown"
     }
 }

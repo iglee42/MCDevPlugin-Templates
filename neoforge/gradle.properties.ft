@@ -5,6 +5,8 @@ org.gradle.parallel=true
 org.gradle.caching=true
 org.gradle.configuration-cache=true
 #end
+
+## Minecraft Properties
 minecraft_version=${VERSIONS.minecraft}
 minecraft_version_range=[${VERSIONS.minecraft},${VERSIONS.minecraftNext})
 neo_version=${VERSIONS.neoforge}
@@ -14,7 +16,6 @@ loader_version_range=[4,)
 #else
 loader_version_range=[2,)
 #end
-
 #if (${VERSIONS.minecraft.compareTo($mcver.MC1_21)} >= 0)
 #if (${PARCHMENT.use})
 parchment_minecraft_version=${PARCHMENT.minecraftVersion}
@@ -26,6 +27,8 @@ neogradle.subsystems.parchment.minecraftVersion=${PARCHMENT.minecraftVersion}
 neogradle.subsystems.parchment.mappingsVersion=${PARCHMENT.version}
 #end
 #end
+
+## Mod Properties
 mod_id=${MOD_ID}
 mod_name=${MOD_NAME}
 mod_license=${LICENSE.name}
@@ -34,7 +37,7 @@ mod_group_id=${BUILD_COORDS.groupId}
 mod_authors=${AUTHORS}
 mod_description=${DESCRIPTION}
 
-publish_display_name=${MOD_NAME} ${BUILD_COORDS.version} for mc${VERSIONS.minecraft}
+## Publish Properties
 publish_maven_repository_url=${PUBLISH_MAVEN_REPOSITORY_URL}
 publish_modrinth_project_id=${PUBLISH_MODRINTH_PROJECT_ID}
 publish_curseforge_project_id=${PUBLISH_CURSEFORGE_PROJECT_ID}
@@ -46,4 +49,3 @@ publish_github_repository=${AUTHOR_NAME}/${MOD_ID}
 #else
 publish_github_repository=
 #end
-publish_github_tag_name=${BUILD_COORDS.version}-${VERSIONS.minecraft}

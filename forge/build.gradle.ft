@@ -198,7 +198,7 @@ publishMods {
     file = tasks.jar.archiveFile
     changelog = silk.changelog
     type = STABLE
-    displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
+    displayName = "${mod_name} ${mod_version} for mc${minecraft_version}"
     modLoaders.add("forge")
     dryRun = providers.environmentVariable("DRY_RUN").map { it == "true" }.orElse(false).get()
 
@@ -237,13 +237,17 @@ publishMods {
         }
     }
 
+    def discordContent = changelogText.length() > 4000
+        ? "Changelog is too long, check it on Modrinth."
+        : changelogText
+
     discord {
         webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
         dryRunWebhookUrl = providers.environmentVariable("DISCORD_WEBHOOK_DRY_RUN")
         content = """
                 # $mod_name | $mod_version
 
-                ${if (changelogText.length() > 4000) "Changelog is too long, check it on Modrinth." else changelogText}
+                $discordContent
             """.stripIndent()
 
         style {
