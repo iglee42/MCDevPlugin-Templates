@@ -5,6 +5,8 @@ Minecraft Development for IntelliJ - Iglee's Custom Templates
 
 This repository is a fork of Minecraft Development for Intellij default templates https://mcdev.io
 
+The url to add it to your Intellij templates repos : https://github.com/iglee42/MCDevPlugin-Templates/archive/refs/heads/main.zip
+
 ## Usage
 You simply need to install the plugin Minecraft Development for IntelliJ on your instance of Jetbrains IntelliJ Idea.
 
