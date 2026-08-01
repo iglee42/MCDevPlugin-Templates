@@ -20,10 +20,7 @@ version = mod_version
 group = mod_group_id
 
 String gitHash = calculateGitHash()
-String changelogText = providers.gradleProperty("publish_changelog")
-    .orElse(providers.environmentVariable("CHANGELOG"))
-    .orElse("Automated release")
-    .get()
+String changelogText = silk.getChangelog()
 
 repositories {
     mavenLocal()
@@ -156,7 +153,7 @@ publishMods {
     file = tasks.jar.archiveFile
     displayName = providers.gradleProperty("publish_display_name").orElse("${mod_name} ${mod_version} for mc${minecraft_version}").get()
     version = project.version
-    changelog = changelogText
+    changelog = silk.changelog
     type = STABLE
     modLoaders.add("neoforge")
     dryRun = providers.environmentVariable("DRY_RUN").map { it == "true" }.orElse(false).get()
@@ -200,6 +197,24 @@ publishMods {
             allowEmptyFiles = true
         }
     }
+
+    discord {
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
+        dryRunWebhookUrl = providers.environmentVariable("DISCORD_WEBHOOK_DRY_RUN")
+        content = """
+                # $mod_name | $mod_version
+
+                ${if (changelogText.length() > 4000) "Changelog is too long, check it on Modrinth." else changelogText}
+            """.stripIndent()
+
+        style {
+            link = "BUTTON"
+            look = "MODERN"
+            thumbnailUrl = "https://cdn.modrinth.com/data/hSSqdyU1/e7229e03d0795915092cdab361ee4406e0b27153_96.webp"
+            color = "curseforge"
+
+        }
+    }
 }
 
 publishing {
@@ -211,7 +226,7 @@ publishing {
     repositories {
         maven {
             name = 'igleeRepo'
-            url = "https://maven.iglee.fr/releases"
+            url = providers.gradleProperty("publish_maven_repository_url").orElse("https://maven.iglee.fr/releases").get()
             credentials {
                 username = providers.environmentVariable("MAVEN_USERNAME").orNull
                 password = providers.environmentVariable("MAVEN_PASSWORD").orNull

@@ -1,9 +1,14 @@
 loom.platform = neoforge
 
 publish_display_name=${MOD_NAME} ${BUILD_COORDS.version} for mc${VERSIONS.minecraftVersion}
-publish_changelog=Automated release
-publish_modrinth_project_id=
-publish_curseforge_project_id=
-publish_curseforge_project_slug=
+publish_modrinth_project_id=${PUBLISH_MODRINTH_PROJECT_ID}
+publish_curseforge_project_id=${PUBLISH_CURSEFORGE_PROJECT_ID}
+publish_curseforge_project_slug=${PUBLISH_CURSEFORGE_PROJECT_SLUG}
+#if ($PUBLISH_GITHUB_REPOSITORY != "")
+publish_github_repository=${PUBLISH_GITHUB_REPOSITORY}
+#elseif ($AUTHOR_NAME != "")
+publish_github_repository=${AUTHOR_NAME}/${MOD_ID}
+#else
 publish_github_repository=
+#end
 publish_github_tag_name=${BUILD_COORDS.version}-${VERSIONS.minecraftVersion}

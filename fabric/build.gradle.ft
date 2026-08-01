@@ -104,5 +104,16 @@ publishing {
     }
 
     repositories {
+        maven {
+            name = 'fabricRepo'
+            url = providers.gradleProperty("publish_maven_repository_url").orElse("https://maven.iglee.fr/releases").get()
+            credentials {
+                username = providers.environmentVariable("MAVEN_USERNAME").orNull
+                password = providers.environmentVariable("MAVEN_PASSWORD").orNull
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+        }
     }
 }

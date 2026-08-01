@@ -126,6 +126,48 @@
       ]
     },
     {
+      "label": "creator.ui.publish_settings.label",
+      "collapsible": true,
+      "groupProperties": [
+        {
+          "name": "PUBLISH_MAVEN_REPOSITORY_URL",
+          "type": "string",
+          "default": "https://maven.iglee.fr/releases",
+          "remember": "fabric.publish_maven_repository_url"
+        },
+        {
+          "name": "AUTHOR_NAME",
+          "type": "string",
+          "default": "",
+          "remember": "fabric.author_name"
+        },
+        {
+          "name": "PUBLISH_MODRINTH_PROJECT_ID",
+          "type": "string",
+          "default": "",
+          "remember": "fabric.publish_modrinth_project_id"
+        },
+        {
+          "name": "PUBLISH_CURSEFORGE_PROJECT_ID",
+          "type": "string",
+          "default": "",
+          "remember": "fabric.publish_curseforge_project_id"
+        },
+        {
+          "name": "PUBLISH_CURSEFORGE_PROJECT_SLUG",
+          "type": "string",
+          "default": "",
+          "remember": "fabric.publish_curseforge_project_slug"
+        },
+        {
+          "name": "PUBLISH_GITHUB_REPOSITORY",
+          "type": "string",
+          "default": "",
+          "remember": "fabric.publish_github_repository"
+        }
+      ]
+    },
+    {
       "name": "JAVA_VERSION",
       "type": "integer",
       "order": 20,
